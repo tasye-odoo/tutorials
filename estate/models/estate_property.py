@@ -1,6 +1,7 @@
 from datetime import timedelta, date
 
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 from dateutil.relativedelta import relativedelta
 
 
@@ -35,7 +36,7 @@ class Property(models.Model):
     )
     active = fields.Boolean('Active', default=True)
     state = fields.Selection(
-        string="Type",
+        string="Status",
         selection=[
             ("new", "New"),
             ("offer_received", "Offer Received"),
@@ -77,3 +78,17 @@ class Property(models.Model):
         else:
             self.garden_area = 0
             self.garden_orientation = None
+
+    def action_cancel(self):
+        for record in self:
+            if record.state == "sold":
+                raise UserError("Sold properties cannot be cancelled.")
+            record.state = "cancelled"
+        return True
+
+    def action_sold(self):
+        for record in self:
+            if record.state == "cancelled":
+                raise UserError("Cancelled properties cannot be sold.")
+            record.state = "sold"
+        return True
