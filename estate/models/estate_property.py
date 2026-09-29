@@ -1,8 +1,9 @@
 from datetime import timedelta, date
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 from dateutil.relativedelta import relativedelta
+from odoo.tools.float_utils import float_compare
 
 
 class Property(models.Model):
@@ -59,6 +60,30 @@ class Property(models.Model):
     )
     total_area = fields.Integer("Total Area (sqm)", compute="_compute_total_area")
     best_price = fields.Integer("Best Offer", compute="_compute_best_price")
+
+    _check_expected_price_positive = models.Constraint(
+        'CHECK(expected_price > 0)',
+        'The expected price of a property must be positive',
+    )
+    _check_selling_price_non_negative = models.Constraint(
+        'CHECK(selling_price >= 0)',
+        'The selling price of a property must not be negative',
+    )
+
+    @api.constrains('selling_price', 'expected_price')
+    def _check_selling_price_expected_price(self):
+        for record in self:
+            # If no offer accepted, it is okay for selling price to be zero
+            any_offer_accepted = any(
+                x == 'accepted' for x in record.offer_ids.mapped("status")
+            )
+            if (
+                float_compare(record.selling_price, (0.9 * record.expected_price)) == -1
+                and any_offer_accepted
+            ):
+                raise ValidationError(
+                    r'The selling price cannot be less than 90% of the expected price'
+                )
 
     @api.depends("living_area", "garden_area")
     def _compute_total_area(self):
