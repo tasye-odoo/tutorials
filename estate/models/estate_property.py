@@ -60,7 +60,7 @@ class Property(models.Model):
         "estate.property.offer", "property_id", string="Property Offers"
     )
     total_area = fields.Integer("Total Area (sqm)", compute="_compute_total_area")
-    best_price = fields.Integer("Best Offer", compute="_compute_best_price")
+    best_price = fields.Integer("Best Offer", compute="_compute_best_price", store=True)
 
     _check_expected_price_positive = models.Constraint(
         'CHECK(expected_price > 0)',
@@ -124,3 +124,9 @@ class Property(models.Model):
                 raise UserError("Cancelled properties cannot be sold.")
             record.state = "sold"
         return True
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_except_new_or_cancelled(self):
+        for record in self:
+            if record.state in ("new", "cancelled"):
+                raise UserError("New or cancelled properties cannot be deleted")

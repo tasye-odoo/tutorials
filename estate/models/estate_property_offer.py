@@ -1,4 +1,6 @@
 from datetime import timedelta
+from odoo.exceptions import UserError, ValidationError
+from importlib import reload
 
 from odoo import fields, models, api
 
@@ -8,7 +10,7 @@ class PropertyOffer(models.Model):
     _description = "Estate Property Offer"
     _order = "price desc"
 
-    price = fields.Float("Price")
+    price = fields.Float("Price", required=True)
     status = fields.Selection(
         string="Status",
         selection=[
@@ -81,3 +83,19 @@ class PropertyOffer(models.Model):
             else:
                 record.status = 'refused'
         return True
+
+    @api.model
+    def create(self, vals_list):
+        for vals in vals_list:
+            property_id = vals['property_id']
+            property_obj = self.env['estate.property'].browse(property_id)
+            if property_obj.state == "new":
+                property_obj.state = "offer_received"
+
+            price = vals['price']
+            if price < property_obj.best_price:
+                raise UserError(
+                    "Cannot create offer with lower price than existing offer"
+                )
+
+        return super().create(vals_list)
