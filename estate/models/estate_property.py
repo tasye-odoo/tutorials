@@ -9,8 +9,9 @@ from odoo.tools.float_utils import float_compare
 class Property(models.Model):
     _name = "estate.property"
     _description = "Estate Property"
+    _order = "id desc"
 
-    name = fields.Char("Property Name", required=True)
+    name = fields.Char("Title", required=True)
     description = fields.Text("Description")
     postcode = fields.Char("Postcode")
     date_availability = fields.Date(
@@ -42,7 +43,7 @@ class Property(models.Model):
             ("new", "New"),
             ("offer_received", "Offer Received"),
             ("offer_accepted", "Offer Accepted"),
-            ("sold", "Sold"),
+            ("sell", "Sell"),
             ("cancelled", "Cancelled"),
         ],
         required=True,
@@ -77,9 +78,15 @@ class Property(models.Model):
             any_offer_accepted = any(
                 x == 'accepted' for x in record.offer_ids.mapped("status")
             )
+            # any_offer_accepted = record.selling_price != 0
             if (
-                float_compare(record.selling_price, (0.9 * record.expected_price)) == -1
-                and any_offer_accepted
+                any_offer_accepted
+                and float_compare(
+                    record.selling_price,
+                    (0.9 * record.expected_price),
+                    precision_digits=5,
+                )
+                == -1
             ):
                 raise ValidationError(
                     r'The selling price cannot be less than 90% of the expected price'
