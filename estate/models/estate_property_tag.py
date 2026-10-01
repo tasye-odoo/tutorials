@@ -7,7 +7,7 @@ class PropertyTag(models.Model):
     _order = "name"
 
     name = fields.Char("Property Tag Name", required=True)
-    color = fields.Integer("Property Color")
+    color = fields.Integer("Property Color", default=1)
 
     _check_property_tag_uniq = models.Constraint(
         'UNIQUE(name)',
