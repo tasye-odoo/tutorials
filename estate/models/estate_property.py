@@ -43,7 +43,7 @@ class Property(models.Model):
             ("new", "New"),
             ("offer_received", "Offer Received"),
             ("offer_accepted", "Offer Accepted"),
-            ("sell", "Sell"),
+            ("sold", "Sold"),
             ("cancelled", "Cancelled"),
         ],
         required=True,
