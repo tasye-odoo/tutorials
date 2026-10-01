@@ -49,12 +49,12 @@ class Property(models.Model):
         required=True,
         copy=False,
         default="new",
+        compute="_compute_state",
+        store=True,
     )
-    property_type_id = fields.Many2one("estate.property.type", string="Property Type")
-    buyer_id = fields.Many2one("res.partner", string="Buyer", copy=False)
-    salesperson_id = fields.Many2one(
-        "res.users", string="Salesperson", default=lambda self: self.env.user
-    )
+    property_type_id = fields.Many2one("estate.property.type")
+    buyer_id = fields.Many2one("res.partner", copy=False)
+    salesperson_id = fields.Many2one("res.users", default=lambda self: self.env.user)
     tag_ids = fields.Many2many("estate.property.tag", string="Property Tags")
     offer_ids = fields.One2many(
         "estate.property.offer", "property_id", string="Property Offers"
@@ -74,13 +74,8 @@ class Property(models.Model):
     @api.constrains('selling_price', 'expected_price')
     def _check_selling_price_expected_price(self):
         for record in self:
-            # If no offer accepted, it is okay for selling price to be zero
-            any_offer_accepted = any(
-                x == 'accepted' for x in record.offer_ids.mapped("status")
-            )
-            # any_offer_accepted = record.selling_price != 0
             if (
-                any_offer_accepted
+                record.state == 'offer_accepted'
                 and float_compare(
                     record.selling_price,
                     (0.9 * record.expected_price),
@@ -96,6 +91,18 @@ class Property(models.Model):
     def _compute_total_area(self):
         for record in self:
             record.total_area = record.living_area + record.garden_area
+
+    @api.depends("offer_ids.status", "offer_ids")
+    def _compute_state(self):
+        for record in self:
+            if record.state == "cancelled":
+                continue
+            if not record.offer_ids:
+                record.state = "new"
+            elif any([x == "accepted" for x in record.offer_ids.mapped("status")]):
+                record.state = "offer_accepted"
+            else:
+                record.state = "offer_received"
 
     @api.depends("offer_ids.price")
     def _compute_best_price(self):

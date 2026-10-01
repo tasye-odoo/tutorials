@@ -9,9 +9,19 @@ from odoo.tools.float_utils import float_compare
 class Property(models.Model):
     _inherit = "estate.property"
 
+    invoice_id = fields.Many2one("account.move")
+
+    # Override
+    @api.depends("invoice_id")
+    def _compute_state(self):
+        super()._compute_state()
+        for record in self:
+            if record.invoice_id:
+                record.state = "sold"
+
     def action_sold(self):
         for record in self:
-            self.env['account.move'].create(
+            invoice = self.env['account.move'].create(
                 [
                     {
                         'move_type': 'out_invoice',
@@ -35,4 +45,8 @@ class Property(models.Model):
                     }
                 ]
             )
+            record.invoice_id = invoice.id
         return super().action_sold()
+
+    def action_view_invoice(self):
+        return self.invoice_id._get_records_action()

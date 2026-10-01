@@ -63,39 +63,28 @@ class PropertyOffer(models.Model):
         self.validity = (self.date_deadline - creation_date).days
 
     def action_accept(self):
-        for record in self:
-            record.property_id.buyer_id = record.partner_id
-            record.property_id.selling_price = record.price
-            record.status = 'accepted'
-            record.property_id.state = 'offer_accepted'
-            for offer in record.property_id.offer_ids:
-                if offer.id == record.id:
-                    continue
-                offer.status = 'refused'
+        self.ensure_one()
+
+        self.property_id.buyer_id = self.partner_id
+        self.property_id.selling_price = self.price
+        self.status = 'accepted'
+
+        (self.property_id.offer_ids - self).status = 'refused'
         return True
 
     def action_refuse(self):
-        for record in self:
-            if record.status == 'accepted':
-                record.status = 'refused'
-                record.property_id.buyer_id = None
-                record.property_id.selling_price = 0
-            else:
-                record.status = 'refused'
+        self.ensure_one()
+        if self.status == 'accepted':
+            self.property_id.buyer_id = False
+            self.property_id.selling_price = 0
+        self.status = 'refused'
         return True
 
-    @api.model
-    def create(self, vals_list):
-        for vals in vals_list:
-            property_id = vals['property_id']
-            property_obj = self.env['estate.property'].browse(property_id)
-            if property_obj.state == "new":
-                property_obj.state = "offer_received"
-
-            price = vals['price']
-            if price < property_obj.best_price:
-                raise UserError(
-                    "Cannot create offer with lower price than existing offer"
+    @api.constrains('price')
+    def _check_price_against_best_price(self):
+        for record in self:
+            property_obj = self.property_id
+            if record.price < property_obj.best_price:
+                raise ValidationError(
+                    r'Cannot create offer with lower price than existing offer'
                 )
-
-        return super().create(vals_list)
