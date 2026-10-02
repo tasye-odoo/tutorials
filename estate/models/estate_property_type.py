@@ -14,9 +14,7 @@ class PropertyType(models.Model):
         "estate.property", "property_type_id", string="Properties"
     )
     offer_ids = fields.One2many("estate.property", "property_type_id", "Offers")
-    offer_count = fields.Integer(
-        "Number of Offers", compute="_compute_number_of_offers"
-    )
+    offer_count = fields.Integer("Number of Offers", compute="_compute_offer_count")
 
     _check_property_type_uniq = models.Constraint(
         'UNIQUE(name)',
@@ -24,7 +22,6 @@ class PropertyType(models.Model):
     )
 
     @api.depends("offer_ids")
-    def _compute_number_of_offers(self):
+    def _compute_offer_count(self):
         for record in self:
             record.offer_count = len(record.offer_ids)
-        return True
